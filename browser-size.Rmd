@@ -4,7 +4,7 @@ subtitle: "Shows simple browser size statistics from Google Analytics"
 author: "Marek Prokop"
 date: "2. 1. 2020"
 params:
-  analytics_view_id: "3389164"
+  analytics_view_id: ""
 output: html_document
 ---
 
