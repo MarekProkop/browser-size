@@ -1,0 +1,163 @@
+---
+title: "Browser Size"
+subtitle: "Shows simple browser size statistics from Google Analytics"
+author: "Marek Prokop"
+date: "2. 1. 2020"
+params:
+  analytics_view_id: "3389164"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE)
+```
+
+```{r libraries}
+library(googleAuthR)
+library(googleAnalyticsR)
+library(tidyverse)
+library(lubridate)
+library(stringr)
+library(knitr)
+```
+
+```{r authorise, include=FALSE}
+# Autentikace nastavena podle: https://code.markedmondson.me/googleAuthR/articles/google-authentication-types.html#setting-the-client-via-google-cloud-client-json
+
+gar_set_client(
+  json = "~/R/google-client.json", 
+  scopes = c(
+    "https://www.googleapis.com/auth/analytics",
+    "https://www.googleapis.com/auth/analytics.readonly",
+    "https://www.googleapis.com/auth/webmasters"
+  )
+)
+
+# authenticate and go through the OAuth2 flow first time - specify a filename to save to by passing it in
+gar.project <- gar_auth(token = "sc_ga.httr-oauth")
+```
+
+```{r check_params}
+if (is.null(params$analytics_view_id) | params$analytics_view_id == "") {
+  cat(
+    "The parametter analytics_view_id is missing or empty.\n\n", 
+    "Please fill in the analytics_view_id parametter in the head of the Rmd document. You can find your view id in Google Analytics View Settings."
+  )
+  knit_exit()
+}
+```
+
+```{r check_accounts}
+account <- ga_account_list() %>% 
+  filter(viewId == params$analytics_view_id)
+
+if (nrow(account) < 1) {
+  cat(str_glue("View id {params$analytics_view_id} was not found."))
+  knit_exit()
+} else {
+  str_glue(
+    "Processing the Analytics account {account$accountName}, property {account$webPropertyName}, view {account$viewName}."
+  )
+}
+```
+
+# Browser (view port) size
+
+```{r fetch_browser_sizes}
+date_to <- today() - 1
+date_from <- date_to - months(6)
+
+browser_sizes <- google_analytics(
+  viewId = params$analytics_view_id,
+  date_range = c(date_from, date_to),
+  metrics = "sessions",
+  dimensions = "browserSize"
+) %>% 
+  filter(str_detect(browserSize, "^[0-9]+x[0-9]+$")) %>% 
+  separate(browserSize, into = c("width", "height"), sep = "x", convert = TRUE)
+
+str_glue(
+  "{nrow(browser_sizes)} rows were fetched from Google Analytics for the period from {date_from} to {date_to}.\n",
+  "Total number of sessions is {sum(browser_sizes$sessions)}."
+)
+```
+
+## Browser Width
+
+```{r browser_width}
+browser_sizes %>% 
+  group_by(width) %>% 
+  summarise(sessions = sum(sessions)) %>% 
+  arrange(desc(width)) %>% 
+  mutate(traffic_share = cumsum(sessions) / sum(sessions)) %>% 
+  arrange(width) %>% 
+  ggplot(aes(x = width, y = traffic_share)) +
+  geom_area(fill = "#006699", alpha = 0.4) +
+  scale_x_continuous(name = "browser width in px", breaks = seq(0, 3000, by = 200)) +
+  scale_y_continuous(name = "share of sessions", labels = scales::percent)
+```
+
+
+## Browser Height
+
+```{r browser_height}
+browser_sizes %>% 
+  group_by(height) %>% 
+  summarise(sessions = sum(sessions)) %>% 
+  arrange(desc(height)) %>% 
+  mutate(traffic_share = cumsum(sessions) / sum(sessions)) %>% 
+  arrange(height) %>% 
+  ggplot(aes(x = height, y = traffic_share)) +
+  geom_area(fill = "#006699", alpha = 0.4) +
+  scale_x_continuous(name = "browser height in px", breaks = seq(0, 3000, by = 200)) +
+  scale_y_continuous(name = "share of sessions", labels = scales::percent)
+```
+
+# Screen resolution
+
+```{r fetch_screen_resolutions}
+screen_resolutions <- google_analytics(
+  viewId = params$analytics_view_id,
+  date_range = c(date_from, date_to),
+  metrics = "sessions",
+  dimensions = "screenResolution"
+) %>% 
+  filter(str_detect(screenResolution, "^[0-9]+x[0-9]+$")) %>% 
+  separate(screenResolution, into = c("width", "height"), sep = "x", convert = TRUE)
+
+str_glue(
+  "{nrow(screen_resolutions)} rows were fetched from Google Analytics for the period from {date_from} to {date_to}.\n",
+  "Total number of sessions is {sum(browser_sizes$sessions)}."
+)
+```
+
+## Screen Width
+
+```{r screen_width}
+screen_resolutions %>% 
+  group_by(width) %>% 
+  summarise(sessions = sum(sessions)) %>% 
+  arrange(desc(width)) %>% 
+  mutate(traffic_share = cumsum(sessions) / sum(sessions)) %>% 
+  arrange(width) %>% 
+  ggplot(aes(x = width, y = traffic_share)) +
+  geom_area(fill = "#006699", alpha = 0.4) +
+  scale_x_continuous(name = "screen width in px", breaks = seq(0, 6000, by = 200)) +
+  scale_y_continuous(name = "share of sessions", labels = scales::percent)
+```
+
+
+## Screen Height
+
+```{r screen_height}
+screen_resolutions %>% 
+  group_by(height) %>% 
+  summarise(sessions = sum(sessions)) %>% 
+  arrange(desc(height)) %>% 
+  mutate(traffic_share = cumsum(sessions) / sum(sessions)) %>% 
+  arrange(height) %>% 
+  ggplot(aes(x = height, y = traffic_share)) +
+  geom_area(fill = "#006699", alpha = 0.4) +
+  scale_x_continuous(name = "screen height in px", breaks = seq(0, 6000, by = 200)) +
+  scale_y_continuous(name = "share of sessions", labels = scales::percent)
+```
