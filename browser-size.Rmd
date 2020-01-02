@@ -4,9 +4,11 @@ subtitle: "Shows simple browser size statistics from Google Analytics"
 author: "Marek Prokop"
 date: "2. 1. 2020"
 params:
-  analytics_view_id: ""
+  analytics_view_id: "" # Enter your Analytics view id insede the quotes.
 output: html_document
 ---
+
+Outliers larger than 1.5 of interquartile range above the 0.75 quartile are omitted.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = FALSE, message = FALSE)
@@ -71,7 +73,8 @@ browser_sizes <- google_analytics(
   viewId = params$analytics_view_id,
   date_range = c(date_from, date_to),
   metrics = "sessions",
-  dimensions = "browserSize"
+  dimensions = "browserSize",
+  max = -1
 ) %>% 
   filter(str_detect(browserSize, "^[0-9]+x[0-9]+$")) %>% 
   separate(browserSize, into = c("width", "height"), sep = "x", convert = TRUE)
@@ -85,7 +88,10 @@ str_glue(
 ## Browser Width
 
 ```{r browser_width}
+outlier <- quantile(browser_sizes$width, 0.75) + 1.5 * IQR(browser_sizes$width)
+
 browser_sizes %>% 
+  filter(width <= outlier) %>% 
   group_by(width) %>% 
   summarise(sessions = sum(sessions)) %>% 
   arrange(desc(width)) %>% 
@@ -93,7 +99,7 @@ browser_sizes %>%
   arrange(width) %>% 
   ggplot(aes(x = width, y = traffic_share)) +
   geom_area(fill = "#006699", alpha = 0.4) +
-  scale_x_continuous(name = "browser width in px", breaks = seq(0, 3000, by = 200)) +
+  scale_x_continuous(name = "browser width in px", breaks = seq(0, 10000, by = 200)) +
   scale_y_continuous(name = "share of sessions", labels = scales::percent)
 ```
 
@@ -101,7 +107,10 @@ browser_sizes %>%
 ## Browser Height
 
 ```{r browser_height}
+outlier <- quantile(browser_sizes$height, 0.75) + 1.5 * IQR(browser_sizes$height)
+
 browser_sizes %>% 
+  filter(height <= outlier) %>% 
   group_by(height) %>% 
   summarise(sessions = sum(sessions)) %>% 
   arrange(desc(height)) %>% 
@@ -109,7 +118,7 @@ browser_sizes %>%
   arrange(height) %>% 
   ggplot(aes(x = height, y = traffic_share)) +
   geom_area(fill = "#006699", alpha = 0.4) +
-  scale_x_continuous(name = "browser height in px", breaks = seq(0, 3000, by = 200)) +
+  scale_x_continuous(name = "browser height in px", breaks = seq(0, 10000, by = 200)) +
   scale_y_continuous(name = "share of sessions", labels = scales::percent)
 ```
 
@@ -120,7 +129,8 @@ screen_resolutions <- google_analytics(
   viewId = params$analytics_view_id,
   date_range = c(date_from, date_to),
   metrics = "sessions",
-  dimensions = "screenResolution"
+  dimensions = "screenResolution",
+  max = -1
 ) %>% 
   filter(str_detect(screenResolution, "^[0-9]+x[0-9]+$")) %>% 
   separate(screenResolution, into = c("width", "height"), sep = "x", convert = TRUE)
@@ -134,7 +144,10 @@ str_glue(
 ## Screen Width
 
 ```{r screen_width}
+outlier <- quantile(screen_resolutions$width, 0.75) + 1.5 * IQR(screen_resolutions$width)
+
 screen_resolutions %>% 
+  filter(width <= outlier) %>% 
   group_by(width) %>% 
   summarise(sessions = sum(sessions)) %>% 
   arrange(desc(width)) %>% 
@@ -142,7 +155,7 @@ screen_resolutions %>%
   arrange(width) %>% 
   ggplot(aes(x = width, y = traffic_share)) +
   geom_area(fill = "#006699", alpha = 0.4) +
-  scale_x_continuous(name = "screen width in px", breaks = seq(0, 6000, by = 200)) +
+  scale_x_continuous(name = "screen width in px", breaks = seq(0, 10000, by = 200)) +
   scale_y_continuous(name = "share of sessions", labels = scales::percent)
 ```
 
@@ -150,7 +163,10 @@ screen_resolutions %>%
 ## Screen Height
 
 ```{r screen_height}
+outlier <- quantile(screen_resolutions$height, 0.75) + 1.5 * IQR(screen_resolutions$height)
+
 screen_resolutions %>% 
+  filter(height <= outlier) %>% 
   group_by(height) %>% 
   summarise(sessions = sum(sessions)) %>% 
   arrange(desc(height)) %>% 
@@ -158,6 +174,6 @@ screen_resolutions %>%
   arrange(height) %>% 
   ggplot(aes(x = height, y = traffic_share)) +
   geom_area(fill = "#006699", alpha = 0.4) +
-  scale_x_continuous(name = "screen height in px", breaks = seq(0, 6000, by = 200)) +
+  scale_x_continuous(name = "screen height in px", breaks = seq(0, 10000, by = 200)) +
   scale_y_continuous(name = "share of sessions", labels = scales::percent)
 ```
